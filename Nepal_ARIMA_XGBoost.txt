@@ -1,0 +1,161 @@
+library(readxl)
+x<-read_excel("D:/COVID-19 world data/Nepal data.xlsx")
+head(x)
+##Summary Statistics
+summary(x$Conf.cases)
+sum(x$Conf.cases)
+sd(x$Conf.cases)
+summary(x$Deaths)
+sum(x$Deaths)
+sd(x$Deaths)
+##Removing 0 vaues
+x[x==0]<-NA
+head(x)
+library(tseries)
+library(TSstudio)
+data_ts<-ts(x$Conf.cases,frequency = 7)
+head(data_ts)
+ts_info(data_ts)
+p1<-ts_plot(data_ts,Xtitle = "Time (weeks)", Ytitle = "Confirmed COVID-19 attributable cases",Xgrid=TRUE,Ygrid = TRUE,title="A: Time Series Plot of COVID-19 COnfirmed Cases")
+p1
+##Imputation of NA values
+library(imputeTS)
+data_ts_imp<-na_locf(data_ts)
+data_ts_imp
+ts_info(data_ts_imp)
+##Splitting data into train and test set
+h1<-56                          #8 weeks
+h2<-620
+data_ts_split<-ts_split(data_ts_imp,sample.out = h1)
+data_ts_split
+train<-data_ts_split$train
+test<-data_ts_split$test
+ts_info(train)
+ts_info(test)
+##BOXCOX transformation
+library(forecast)
+lambda<-BoxCox.lambda(train)
+lambda
+train_BC<-BoxCox(train,lambda =0.2150451)
+train_BC
+p2<-plot(cbind(train,train_BC), main="A: Box-Cox transform sequence and the original sequence of COVID-19 confirmed cases.",xlab="Time (weeks)")
+p2
+##Seasonal Decomposition
+p3<-ts_decompose(train_BC)
+p3
+##Augmented Dickey fuller test(ADF) for training data for checking stationarity
+adf.test(train_BC,k=7)
+##First differencing
+train_BC_d1<-diff(train_BC,differences=1)
+train_BC_d1
+adf.test(train_BC_d1,k=7)
+p4<-ts_plot(train_BC_d1,Xtitle = "Time(weeks)", Ytitle ="Confirmed COVID-19 attributable cases",Xgrid = TRUE,Ygrid = TRUE, title = "A: First order differencing of the confirmed cases ")
+p4
+##ACF and PACF plot
+p5<-ts_cor(train_BC_d1)
+p5
+md1<-auto.arima(train,
+                approximation = FALSE,
+                d=1,
+                D=1,
+                lambda = 0.2150451,
+                trace=TRUE)
+summary(md1)
+fc1<-forecast(md1,h=h1);fc1
+accuracy(fc1,test)
+##Checking residuals of the model
+p6<-check_res(md1)
+p6
+library(plotly)
+p7<-test_forecast(forecast.obj = fc1,actual=data_ts,test=test)%>%
+  layout(legend=list(x=0.1,y=0.95))
+p7
+##XGBoost model
+library(forecastxgb)
+md2<-xgbar(train,
+           nrounds=10,
+           nrounds_method = "cv",
+           seas_method = "dummies",
+           nfold=10,
+           lambda = 0.2150451)
+fc2<-forecast(md2,h=h1);fc2
+accuracy(fc2,test)
+p8<-test_forecast(forecast.obj = fc2,actual=data_ts,test=test)%>%
+  layout(legend=list(x=0.1,y=0.95))
+p8
+
+
+##Deaths study
+death_ts<-ts(x$Deaths,frequency = 7)
+head(death_ts)
+ts_info(death_ts)
+p9<-ts_plot(death_ts,Xtitle = "Time (weeks)", Ytitle = " COVID-19  deaths",color="Red",Xgrid=TRUE,Ygrid = TRUE,title="B: Time Series Plot of COVID-19 deaths")
+p9
+##Imputation of NA values
+library(imputeTS)
+death_ts_imp<-na_kalman(death_ts)
+death_ts_imp
+ts_info(data_ts_imp)
+##Splitting data into train and test set
+h1<-56
+h2<-620
+death_ts_split<-ts_split(death_ts_imp,sample.out = h1)
+death_ts_split
+train<-death_ts_split$train
+test<-death_ts_split$test
+ts_info(train)
+ts_info(test)
+##BOXCOX transformation
+library(forecast)
+lambda<-BoxCox.lambda(train)
+lambda
+train_BC<-BoxCox(train,lambda =0.2042207)
+train_BC
+p10<-plot(cbind(train,train_BC), main="B: Box-Cox transform sequence and the original sequence of COVID-19 deaths.", xlab="Time (weeks)")
+p10
+##Seasonal Decomposition
+p11<-ts_decompose(train_BC)
+p11
+##Augmented Dickey fuller test(ADF) for training data for checking stationarity
+adf.test(train_BC,k=7)
+##First differencing
+train_BC_d1<-diff(train_BC,differences=1)
+train_BC_d1
+adf.test(train_BC_d1,k=7)
+p12<-ts_plot(train_BC_d1,Xtitle = "Time(weeks)", Ytitle ="CCOVID-19 deaths",color="red",Xgrid = TRUE,Ygrid = TRUE, title = "A: First order differencing of the cCOVID-19 deaths ")
+p12
+##ACF and PACF plot
+p13<-ts_cor(train_BC_d1)
+p13
+## Modeling and forecasting
+md3<-auto.arima(train,
+                stepwise = FALSE,
+                approximation = FALSE,
+                d=1,
+                D=1,
+                lambda = 0.2042207,
+                trace=TRUE)
+summary(md3)
+fc3<-forecast(md3,h=h1);fc3
+accuracy(fc3,test)
+##Checking residuals of the model
+p14<-check_res(md3)
+p14
+library(plotly)
+p15<-test_forecast(forecast.obj = fc3,actual=death_ts,test=test)%>%
+  layout(legend=list(x=0.1,y=0.95))
+p15
+##XGBoost model
+library(forecastxgb)
+md4<-xgbar(train,
+           nrounds=10,
+           nrounds_method = "cv",
+           seas_method = "dummies",
+           nfold=5,
+           lambda = 0.2042207)
+summary(md4)
+fc4<-forecast(md4,h=h1);fc4
+accuracy(fc4,test)
+p16<-test_forecast(forecast.obj = fc4,actual=death_ts,test=test)%>%
+  layout(legend=list(x=0.1,y=0.95))
+p16

@@ -1,0 +1,592 @@
+##Our working directory
+setwd("D:/R-programming")
+getwd()
+##Required libraries
+library(readxl)
+library(tseries)
+library(forecast)
+library(TSstudio)
+library(imputeTS)
+library(ggplot2)
+library(forecastxgb)
+library(gridExtra)
+##Reading data from excel file
+df<-read_excel("BD_COVID_tseries_data.xlsx")
+head(df)
+b1<-boxplot(df$Conf.cases,
+            col="blue",
+            main="COVID-19 confirmed cases");b1
+b2<-boxplot(df$Conf.deaths,
+            col="red",
+            main="COVID-19 deaths");b2
+par(mfrow=c(1,2))
+b1;b2
+t1<-ts(df$Conf.cases,frequency=7)
+plot1<-autoplot(t1,col="blue")+xlab("Time (week)")+ylab("COVID-19 attributable cases")+ggtitle("A: Confirmed cases")+theme_bw();plot1
+t2<-ts(df$Conf.deaths,frequency=7)
+plot2<-autoplot(t2,col="red")+xlab("Time (week)")+ylab("COVID-19 deaths")+ggtitle("B: Deaths")+theme_bw();plot2
+grid.arrange(plot1,plot2,ncol=2)
+##Removing 0 vaues
+df[df==0]<-NA
+head(df)
+##For cases
+##Subsets of the original data frame
+df1<-df[1:297,]
+df2<-df[1:353,]
+df3<-df[1:409,]
+df4<-df[1:465,]
+df5<-df[1:521,]
+df6<-df[1:577,]
+df7<-df[1:633,]
+
+##Sample1
+dts1<-ts(df1$Conf.cases,frequency=7)
+head(dts1)
+ts_info(dts1)
+dts1_imp<-na_locf(dts1)
+p1<-autoplot(dts1_imp,col="blue")+xlab("Time (week)")+ylab("COVID-19 attributable cases")+theme_bw()+ggtitle("dataset 1");p1
+ts_info(dts1_imp)
+
+##Splitting data into train and test set
+h1<-56                          #8 weeks
+h2<-241
+dts1_split<-ts_split(dts1_imp,sample.out = h1)
+dts1_split
+train1<-dts1_split$train
+test1<-dts1_split$test
+ts_info(train1)
+ts_info(test1)
+
+lambda<-BoxCox.lambda(train1)
+lambda
+train_BC1<-BoxCox(train1,lambda =0.2937374)
+train_BC1
+adf.test(train_BC1,k=7)
+d<-diff(train_BC1,differences =1)
+adf.test(d,k=7)
+##ARIMA model
+md1<-auto.arima(train1,
+                d=1,
+                D=1,
+                stepwise = FALSE,
+                approximation = FALSE,
+                lambda = 0.3071558,
+                trace=TRUE)
+summary(md1)
+fc1<-forecast(md1,h=h1);fc1
+accuracy(fc1,test1)
+f1<-autoplot(dts1_imp,series="actual")+autolayer(fc1, series="Forecast")+autolayer(fitted(fc1), series="Fitted")+
+  ylab("COVID-19 attributable cases")+ggtitle("Datset 1")+xlab("")+theme_bw();f1
+##XGBoost model
+gmd1<-xgbar(train1,
+            lambda=0.3071558)
+gfc1<-forecast(gmd1,h=h1);gfc1
+accuracy(gfc1,test1)
+gf1<-autoplot(dts1_imp,series="actual")+autolayer(gfc1, series="Forecast")+autolayer(fitted(gfc1), series="Fitted")+
+  ylab("COVID-19 attributable cases")+ggtitle("Datset 1")+xlab("")+theme_bw();gf1
+
+##Sample 2
+dts2<-ts(df2$Conf.cases,frequency=7)
+head(dts2)
+ts_info(dts2)
+dts2_imp<-na_locf(dts2)
+p2<-autoplot(dts2_imp,col="blue")+xlab("Time (week)")+ylab("COVID-19 attributable cases")+theme_bw()+ggtitle("dataset 2");p2
+
+##Splitting data into train and test set
+h1<-56                          #8 weeks
+h2<-297
+dts2_split<-ts_split(dts2_imp,sample.out = h1)
+dts2_split
+train2<-dts2_split$train
+test2<-dts2_split$test
+ts_info(train2)
+ts_info(test2)
+
+lambda<-BoxCox.lambda(train2)
+lambda
+train_BC2<-BoxCox(train2,lambda =0.3166765)
+train_BC2
+adf.test(train_BC2,k=7)
+train_BC2_df1<-diff(train_BC2,differences = 1)
+adf.test(train_BC2_df1,k=7)
+
+##ARIMA model
+md2<-auto.arima(train2,
+                d=1,
+                D=1,
+                stepwise = FALSE,
+                approximation = FALSE,
+                lambda = 0.3166765,
+                trace=TRUE)
+summary(md2)
+fc2<-forecast(md2,h=h1);fc2
+accuracy(fc2,test2)
+f2<-autoplot(dts2_imp,series="actual")+autolayer(fc2, series="Forecast")+autolayer(fitted(fc2), series="Fitted")+
+  ylab("")+ggtitle("Datset 2")+xlab("")+theme_bw();f2
+##XGBoost model
+gmd2<-xgbar(train2,
+            lambda=0.3166765)
+gfc2<-forecast(gmd2,h=h1);gfc2
+accuracy(gfc2,test2)
+gf2<-autoplot(dts2_imp,series="actual")+autolayer(gfc2, series="Forecast")+autolayer(fitted(gfc2), series="Fitted")+
+  ylab("")+ggtitle("Datset 2")+xlab("")+theme_bw();gf2
+
+##Sample 3
+dts3<-ts(df3$Conf.cases,frequency=7)
+head(dts3)
+ts_info(dts3)
+dts3_imp<-na_locf(dts3)
+p3<-autoplot(dts3_imp,col="blue")+xlab("Time (week)")+ylab("COVID-19 attributable cases")+theme_bw()+ggtitle("dataset 3");p3
+
+##Splitting data into train and test set
+h1<-56                          #8 weeks
+h2<-353
+dts3_split<-ts_split(dts3_imp,sample.out = h1)
+dts3_split
+train3<-dts3_split$train
+test3<-dts3_split$test
+ts_info(train3)
+ts_info(test3)
+
+lambda<-BoxCox.lambda(train3)
+lambda
+train_BC3<-BoxCox(train3,lambda =0.3039779)
+train_BC3
+adf.test(train_BC3,k=7)
+train_BC3_df1<-diff(train_BC3,differences = 1)
+adf.test(train_BC3_df1,k=7)
+
+##ARIMA model
+md3<-auto.arima(train3,
+                d=1,
+                D=1,
+                stepwise = FALSE,
+                approximation = FALSE,
+                lambda = 0.3039779,
+                trace=TRUE)
+summary(md3)
+fc3<-forecast(md3,h=h1);fc3
+accuracy(fc3,test3)
+f3<-autoplot(dts3_imp,series="actual")+autolayer(fc3, series="Forecast")+autolayer(fitted(fc3), series="Fitted")+
+  ylab("COVID-19 attributable cases")+xlab("Time (week)")+ggtitle("Datset 3")+xlab("")+theme_bw();f3
+##XGBoost model
+gmd3<-xgbar(train3,
+            lambda=0.3039779)
+gfc3<-forecast(gmd3,h=h1);gfc3
+accuracy(gfc3,test3)
+gf3<-autoplot(dts3_imp,series="actual")+autolayer(gfc3, series="Forecast")+autolayer(fitted(gfc3), series="Fitted")+
+  ylab("COVID-19 attributable cases")+xlab("Time (week)")+ggtitle("Datset 3")+xlab("")+theme_bw();gf3
+
+##Sample 4
+dts4<-ts(df4$Conf.cases,frequency=7)
+head(dts4)
+dts4_imp<-na_locf(dts4)
+p4<-autoplot(dts4_imp,col="blue")+xlab("Time (week)")+ylab("COVID-19 attributable cases")+theme_bw()+ggtitle("dataset 4");p4
+
+##Splitting data into train and test set
+h1<-56                          #8 weeks
+h2<-409
+dts4_split<-ts_split(dts4_imp,sample.out = h1)
+dts4_split
+train4<-dts4_split$train
+test4<-dts4_split$test
+ts_info(train4)
+ts_info(test4)
+
+lambda<-BoxCox.lambda(train4)
+lambda
+train_BC4<-BoxCox(train4,lambda =0.2742474)
+train_BC4
+adf.test(train_BC4,k=7)
+train_BC4_df1<-diff(train_BC4,differences = 1)
+adf.test(train_BC4_df1,k=7)
+
+##ARIMA model
+md4<-auto.arima(train4,
+                d=1,
+                D=1,
+                stepwise = FALSE,
+                approximation = FALSE,
+                lambda = 0.2742474,
+                trace=TRUE)
+summary(md4)
+fc4<-forecast(md4,h=h1);fc4
+accuracy(fc4,test4)
+f4<-autoplot(dts4_imp,series="actual")+autolayer(fc4, series="Forecast")+autolayer(fitted(fc4), series="Fitted")+
+  ylab("COVID-19 attributable cases")+xlab("Time (week)")+ggtitle("Datset 4")+xlab("")+theme_bw();f4
+##XGBoost model
+gmd4<-xgbar(train4,
+            lambda=0.2742474)
+gfc4<-forecast(gmd4,h=h1);gfc4
+accuracy(gfc4,test4)
+gf4<-autoplot(dts4_imp,series="actual")+autolayer(gfc4, series="Forecast")+autolayer(fitted(gfc4), series="Fitted")+
+  ylab("COVID-19 attributable cases")+xlab("Time (week)")+ggtitle("Datset 4")+xlab("")+theme_bw();gf4
+##Sample 5
+dts5<-ts(df5$Conf.cases,frequency=7)
+head(dts5)
+dts5_imp<-na_locf(dts5)
+p5<-autoplot(dts5_imp,col="blue")+xlab("Time (week)")+ylab("COVID-19 attributable cases")+theme_bw()+ggtitle("dataset 5");p5
+
+##Splitting data into train and test set
+h1<-56                          #8 weeks
+h2<-465
+dts5_split<-ts_split(dts5_imp,sample.out = h1)
+dts5_split
+train5<-dts5_split$train
+test5<-dts5_split$test
+ts_info(train5)
+ts_info(test5)
+
+lambda<-BoxCox.lambda(train5)
+lambda
+train_BC5<-BoxCox(train5,lambda =0.2731078)
+train_BC5
+adf.test(train_BC5,k=7)
+train_BC5_df1<-diff(train_BC5,differences = 1)
+adf.test(train_BC5_df1,k=7)
+
+##ARIMA model
+md5<-auto.arima(train5,
+                d=1,
+                D=1,
+                stepwise = FALSE,
+                approximation = FALSE,
+                lambda = 0.2731078,
+                trace=TRUE)
+summary(md5)
+fc5<-forecast(md5,h=h1);fc5
+accuracy(fc5,test5)
+f5<-autoplot(dts5_imp,series="actual")+autolayer(fc5, series="Forecast")+autolayer(fitted(fc5), series="Fitted")+
+  ylab("COVID-19 attributable cases")+xlab("Time (week)")+ggtitle("Datset 5")+theme_bw();f5
+##XGBoost model
+gmd5<-xgbar(train5,
+            lambda=0.2731078)
+gfc5<-forecast(gmd5,h=h1);gfc5
+accuracy(gfc5,test5)
+gf5<-autoplot(dts5_imp,series="actual")+autolayer(gfc5, series="Forecast")+autolayer(fitted(gfc5), series="Fitted")+
+  ylab("COVID-19 attributable cases")+xlab("Time (week)")+ggtitle("Datset 5")+theme_bw();gf5
+
+##Sample 6
+dts6<-ts(df6$Conf.cases,frequency=7)
+head(dts6)
+dts6_imp<-na_locf(dts6)
+p6<-autoplot(dts6_imp,col="blue")+xlab("Time (week)")+ylab("COVID-19 attributable cases")+theme_bw()+ggtitle("dataset 6");p6
+
+##Splitting data into train and test set
+h1<-56                          #8 weeks
+h2<-521
+dts6_split<-ts_split(dts6_imp,sample.out = h1)
+dts6_split
+train6<-dts6_split$train
+test6<-dts6_split$test
+ts_info(train6)
+ts_info(test6)
+
+lambda<-BoxCox.lambda(train6)
+lambda
+train_BC6<-BoxCox(train6,lambda =0.1676505)
+train_BC6
+adf.test(train_BC6,k=7)
+train_BC6_df1<-diff(train_BC6,differences = 1)
+adf.test(train_BC6_df1,k=7)
+
+##ARIMA model
+md6<-auto.arima(train6,
+                d=1,
+                D=1,
+                stepwise = FALSE,
+                approximation = FALSE,
+                lambda = 0.1676505,
+                trace=TRUE)
+summary(md6)
+fc6<-forecast(md6,h=h1);fc6
+accuracy(fc6,test6)
+f6<-autoplot(dts6_imp,series="actual")+autolayer(fc6, series="Forecast")+autolayer(fitted(fc6), series="Fitted")+
+  ylab("COVID-19 attributable cases")+xlab("Time (week)")+ggtitle("Datset 6")+theme_bw();f6
+##XGBoost model
+gmd6<-xgbar(train6,
+            lambda=0.1676505)
+gfc6<-forecast(gmd6,h=h1);gfc6
+accuracy(gfc6,test6)
+gf6<-autoplot(dts6_imp,series="actual")+autolayer(gfc6, series="Forecast")+autolayer(fitted(gfc6), series="Fitted")+
+  ylab("COVID-19 attributable cases")+xlab("Time (week)")+ggtitle("Datset 6")+theme_bw();gf6
+##Sample 7
+dts7<-ts(df7$Conf.cases,frequency=7)
+head(dts7)
+dts7_imp<-na_locf(dts7)
+p7<-autoplot(dts7_imp,col="blue")+xlab("Time (week)")+ylab("COVID-19 attributable cases")+theme_bw()+ggtitle("dataset 7");p7
+
+##Splitting data into train and test set
+h1<-56                          #8 weeks
+h2<-577
+dts7_split<-ts_split(dts7_imp,sample.out = h1)
+dts7_split
+train7<-dts7_split$train
+test7<-dts7_split$test
+ts_info(train7)
+ts_info(test7)
+
+lambda<-BoxCox.lambda(train7)
+lambda
+train_BC7<-BoxCox(train7,lambda =0.1669227)
+train_BC7
+adf.test(train_BC7,k=7)
+train_BC7_df1<-diff(train_BC7,differences = 1)
+adf.test(train_BC7_df1,k=7)
+
+##ARIMA model
+md7<-auto.arima(train7,
+                d=1,
+                D=1,
+                stepwise = FALSE,
+                approximation = FALSE,
+                lambda = 0.1669227,
+                trace=TRUE)
+summary(md7)
+fc7<-forecast(md7,h=h1);fc7
+accuracy(fc7,test7)
+f7<-autoplot(dts7_imp,series="actual")+autolayer(fc7, series="Forecast")+autolayer(fitted(fc7), series="Fitted")+
+  ylab("COVID-19 attributable cases")+xlab("Time (week)")+ggtitle("Datset 7")+theme_bw();f7
+##XGBoost model
+gmd7<-xgbar(train7,
+            lambda=0.1669227)
+gfc7<-forecast(gmd7,h=h1);gfc7
+accuracy(gfc7,test7)
+gf7<-autoplot(dts7_imp,series="actual")+autolayer(gfc7, series="Forecast")+autolayer(fitted(gfc7), series="Fitted")+
+  ylab("COVID-19 attributable cases")+xlab("Time (week)")+ggtitle("Datset 7")+theme_bw();gf7
+
+grid.arrange(p1,p2,p3,p4,p5,p6,p7,ncol=2)
+grid.arrange(f1,f2,f3,f4,f5,f6,f7,nrow=4,ncol=2)
+grid.arrange(gf1,gf2,gf3,gf4,gf5,gf6,gf7,nrow=4,ncol=2)
+
+####################For Deaths##########################
+df1<-df[1:409,]
+df2<-df[1:465,]
+df3<-df[1:521,]
+df4<-df[1:577,]
+df5<-df[1:633,]
+##Sample1
+dts1<-ts(df1$Conf.deaths,frequency=7)
+head(dts1)
+dts1_imp<-na_kalman(dts1)
+sp1<-autoplot(dts1_imp,col="red")+xlab("Time (week)")+ylab("COVID-19 deaths")+theme_bw()+ggtitle("dataset 1");sp1
+
+##Splitting data into train and test set
+h1<-56                          #8 weeks
+h2<-353
+dts1_split<-ts_split(dts1_imp,sample.out = h1)
+dts1_split
+train1<-dts1_split$train
+test1<-dts1_split$test
+ts_info(train1)
+ts_info(test1)
+
+lambda<-BoxCox.lambda(train1)
+lambda
+train_BC1<-BoxCox(train1,lambda =0.3820017)
+train_BC1
+adf.test(train_BC1,k=7)
+train_BC1_df1<-diff(train_BC1,differences = 1)
+adf.test(train_BC1_df1,k=7)
+##ARIMA model
+md1<-auto.arima(train1,
+                d=1,
+                D=1,
+                stepwise = FALSE,
+                approximation = FALSE,
+                lambda = 0.3820017,
+                trace=TRUE)
+summary(md1)
+fc1<-forecast(md1,h=h1);fc1
+accuracy(fc1,test1)
+sf1<-autoplot(dts1_imp,series="actual")+autolayer(fc1, series="Forecast")+autolayer(fitted(fc1), series="Fitted")+
+  ylab("COVID-19 deaths")+xlab("Time (week)")+ggtitle("Datset 1")+theme_bw();sf1
+##XGBoost model
+gmd1<-xgbar(train1,
+            lambda=0.3820017,
+            )
+gfc1<-forecast(gmd1,h=h1);gfc1
+accuracy(gfc1,test1)
+sgf1<-autoplot(dts1_imp,series="actual")+autolayer(gfc1, series="Forecast")+autolayer(fitted(gfc1), series="Fitted")+
+  ylab("COVID-19 deaths")+xlab("Time (week)")+ggtitle("Datset 1")+theme_bw();sgf1
+##Sample 2
+dts2<-ts(df2$Conf.deaths,frequency=7)
+head(dts2)
+dts2_imp<-na_kalman(dts2)
+sp2<-autoplot(dts2_imp,col="red")+xlab("Time (week)")+ylab("COVID-19 deaths")+theme_bw()+ggtitle("dataset 2");sp2
+
+##Splitting data into train and test set
+h1<-56                          #8 weeks
+h2<-409
+dts2_split<-ts_split(dts2_imp,sample.out = h1)
+dts2_split
+train2<-dts2_split$train
+test2<-dts2_split$test
+ts_info(train2)
+ts_info(test2)
+
+lambda<-BoxCox.lambda(train2)
+lambda
+train_BC2<-BoxCox(train2,lambda =0.4511662)
+train_BC2
+adf.test(train_BC2,k=7)
+train_BC2_df1<-diff(train_BC2,differences = 1)
+adf.test(train_BC2_df1,k=7)
+
+##ARIMA model
+md2<-auto.arima(train2,
+                d=1,
+                D=1,
+                stepwise = FALSE,
+                approximation = FALSE,
+                lambda = 0.4511662,
+                trace=TRUE)
+summary(md2)
+fc2<-forecast(md2,h=h1);fc2
+accuracy(fc2,test2)
+sf2<-autoplot(dts2_imp,series="actual")+autolayer(fc2, series="Forecast")+autolayer(fitted(fc2), series="Fitted")+
+  ylab("COVID-19 deaths")+xlab("Time (week)")+ggtitle("Datset 2")+theme_bw();sf2
+##XGBoost model
+gmd2<-xgbar(train2,
+            lambda=0.4511662)
+gfc2<-forecast(gmd2,h=h1);gfc2
+accuracy(gfc2,test2)
+sgf2<-autoplot(dts2_imp,series="actual")+autolayer(gfc2, series="Forecast")+autolayer(fitted(gfc2), series="Fitted")+
+  ylab("COVID-19 deaths")+xlab("Time (week)")+ggtitle("Datset 2")+theme_bw();sgf2
+
+##Sample 3
+dts3<-ts(df3$Conf.deaths,frequency=7)
+head(dts3)
+dts3_imp<-na_kalman(dts3)
+sp3<-autoplot(dts3_imp,col="red")+xlab("Time (week)")+ylab("COVID-19 deaths")+theme_bw()+ggtitle("dataset 3");sp3
+
+##Splitting data into train and test set
+h1<-56                          #8 weeks
+h2<-465
+dts3_split<-ts_split(dts3_imp,sample.out = h1)
+dts3_split
+train3<-dts3_split$train
+test3<-dts3_split$test
+ts_info(train3)
+ts_info(test3)
+
+lambda<-BoxCox.lambda(train3)
+lambda
+train_BC3<-BoxCox(train3,lambda =0.4587284)
+train_BC3
+adf.test(train_BC3,k=7)
+train_BC3_df1<-diff(train_BC3,differences = 1)
+adf.test(train_BC3_df1,k=7)
+
+##ARIMA model
+md3<-auto.arima(train3,
+                d=1,
+                D=1,
+                stepwise = FALSE,
+                approximation = FALSE,
+                lambda = 0.4587284,
+                trace=TRUE)
+summary(md3)
+fc3<-forecast(md3,h=h1);fc3
+accuracy(fc3,test3)
+sf3<-autoplot(dts3_imp,series="actual")+autolayer(fc3, series="Forecast")+autolayer(fitted(fc3), series="Fitted")+
+  ylab("COVID-19 deaths")+xlab("Time (week)")+ggtitle("Datset 3")+theme_bw();sf3
+##XGBoost model
+gmd3<-xgbar(train3,
+            lambda=0.4587284)
+gfc3<-forecast(gmd3,h=h1);gfc3
+accuracy(gfc3,test3)
+sgf3<-autoplot(dts3_imp,series="actual")+autolayer(gfc3, series="Forecast")+autolayer(fitted(gfc3), series="Fitted")+
+  ylab("COVID-19 deaths")+xlab("Time (week)")+ggtitle("Datset 3")+theme_bw();sgf3
+
+##Sample 4
+dts4<-ts(df4$Conf.deaths,frequency=7)
+head(dts4)
+dts4_imp<-na_kalman(dts4)
+sp4<-autoplot(dts4_imp,col="red")+xlab("Time (week)")+ylab("COVID-19 deaths")+theme_bw()+ggtitle("dataset 4");sp4
+
+##Splitting data into train and test set
+h1<-56                          #8 weeks
+h2<-521
+dts4_split<-ts_split(dts4_imp,sample.out = h1)
+dts4_split
+train4<-dts4_split$train
+test4<-dts4_split$test
+ts_info(train4)
+ts_info(test4)
+
+lambda<-BoxCox.lambda(train4)
+lambda
+train_BC4<-BoxCox(train4,lambda =0.4070648)
+train_BC4
+adf.test(train_BC4,k=7)
+train_BC4_df1<-diff(train_BC4,differences = 1)
+adf.test(train_BC4_df1,k=7)
+
+##ARIMA model
+md4<-auto.arima(train4,
+                d=1,
+                D=1,
+                stepwise = FALSE,
+                approximation = FALSE,
+                lambda = 0.4070648,
+                trace=TRUE)
+summary(md4)
+fc4<-forecast(md4,h=h1);fc4
+accuracy(fc4,test4)
+sf4<-autoplot(dts4_imp,series="actual")+autolayer(fc4, series="Forecast")+autolayer(fitted(fc4), series="Fitted")+
+  ylab("COVID-19 deaths")+xlab("Time (week)")+ggtitle("Datset 4")+theme_bw();sf4
+##XGBoost model
+gmd4<-xgbar(train4,
+            lambda=0.4070648)
+gfc4<-forecast(gmd4,h=h1);gfc4
+accuracy(gfc4,test4)
+sgf4<-autoplot(dts4_imp,series="actual")+autolayer(gfc4, series="Forecast")+autolayer(fitted(gfc4), series="Fitted")+
+  ylab("COVID-19 deaths")+xlab("Time (week)")+ggtitle("Datset 4")+theme_bw();sgf4
+##Sample 5
+dts5<-ts(df5$Conf.deaths,frequency=7)
+head(dts5)
+dts5_imp<-na_kalman(dts5)
+sp5<-autoplot(dts5_imp,col="red")+xlab("Time (week)")+ylab("COVID-19 deaths")+theme_bw()+ggtitle("dataset 5");sp5
+##Splitting data into train and test set
+h1<-56                          #8 weeks
+h2<-577
+dts5_split<-ts_split(dts5_imp,sample.out = h1)
+dts5_split
+train5<-dts5_split$train
+test5<-dts5_split$test
+ts_info(train5)
+ts_info(test5)
+
+lambda<-BoxCox.lambda(train5)
+lambda
+train_BC5<-BoxCox(train5,lambda =0.3880509)
+train_BC5
+adf.test(train_BC5,k=7)
+train_BC5_df1<-diff(train_BC5,differences = 1)
+adf.test(train_BC5_df1,k=7)
+
+##ARIMA model
+md5<-auto.arima(train5,
+                d=1,
+                D=1,
+                stepwise = FALSE,
+                approximation = FALSE,
+                lambda = 0.3880509,
+                trace=TRUE)
+summary(md5)
+fc5<-forecast(md5,h=h1);fc5
+accuracy(fc5,test5)
+sf5<-autoplot(dts5_imp,series="actual")+autolayer(fc5, series="Forecast")+autolayer(fitted(fc5), series="Fitted")+
+  ylab("COVID-19 deaths")+xlab("Time (week)")+ggtitle("Datset 5")+theme_bw();sf5
+##XGBoost model
+gmd5<-xgbar(train5,
+            lambda=0.3880509)
+gfc5<-forecast(gmd5,h=h1);gfc5
+accuracy(gfc5,test5)
+sgf5<-autoplot(dts5_imp,series="actual")+autolayer(gfc5, series="Forecast")+autolayer(fitted(gfc5), series="Fitted")+
+  ylab("COVID-19 deaths")+xlab("Time (week)")+ggtitle("Datset 5")+theme_bw();sgf5
+
+grid.arrange(sp1,sp2,sp3,sp4,sp5,ncol=2)
+grid.arrange(sf1,sf2,sf3,sf4,sf5,ncol=2)
+grid.arrange(sgf1,sgf2,sgf3,sgf4,sgf5,ncol=2)
